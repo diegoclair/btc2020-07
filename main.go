@@ -26,6 +26,7 @@ type Rows interface {
 }
 
 type Data struct {
+	Row          int    `json:"row" csv:"row" `
 	Tempo        string `json:"Tempo" csv:"Tempo" `
 	Estacao      string `json:"Estação" csv:"Estação" `
 	LAT          string `json:"LAT" csv:"LAT" `
@@ -40,7 +41,6 @@ type Data struct {
 	AcaiGuarana  string `json:"Açaí-Guaraná" csv:"Açaí-Guaraná" `
 	Pessego      string `json:"Pêssego" csv:"Pêssego" `
 	TARGET       string `json:"TARGET" csv:"TARGET" `
-	Row          int    `json:"row" csv:"row" `
 }
 
 // ToCSVRow Return struct in a csv row format
@@ -84,12 +84,16 @@ var f MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
 
 		var data Data
 
-		json.Unmarshal([]byte(payload), &data)
-
-		err := writeCsvFile(data)
+		err := json.Unmarshal([]byte(payload), &data)
 		if err != nil {
 			flag = true
 		}
+
+		err = writeCsvFile(data)
+		if err != nil {
+			flag = true
+		}
+
 		fmt.Printf("MSG: %s\n", payload)
 
 		if i == 3 {
@@ -143,8 +147,16 @@ func writeCsvFile(data Data) error {
 	path := "./dataset.csv"
 	fileCSV, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_EXCL, 0666)
 	if err != nil {
-		fmt.Println("Error to create file: ", err)
-		return err
+		if strings.Contains(err.Error(), "no such file or directory") {
+			fileCSV, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
+			if err != nil {
+				fmt.Println("Error to create file: ", err)
+				return err
+			}
+		} else {
+			fmt.Println("Error to open file: ", err)
+			return err
+		}
 	}
 
 	w := bufio.NewWriterSize(fileCSV, 4096*2)
@@ -159,8 +171,8 @@ func writeCsvFile(data Data) error {
 		wr.Write(data.ToCSVHeader())
 	}
 	i++
-	wr.Write(data.ToCSVRow())
 
+	wr.Write(data.ToCSVRow())
 	wr.Flush()
 
 	_, err = fileCSV.Seek(0, 0)
