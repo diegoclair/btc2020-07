@@ -150,6 +150,7 @@ func writeCsvFile(data Data) error {
 		fmt.Println("Error to open file: ", err)
 		return err
 	}
+	defer fileCSV.Close()
 
 	w := bufio.NewWriterSize(fileCSV, 4096*2)
 	wr := csv.NewWriter(w)
@@ -171,8 +172,6 @@ func writeCsvFile(data Data) error {
 	if err != nil {
 		return err
 	}
-
-	fileCSV.Close()
 
 	return nil
 }
