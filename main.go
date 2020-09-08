@@ -19,12 +19,6 @@ import (
 var flag bool = false
 var i int
 
-// Rows csv data contract
-type Rows interface {
-	ToCSVHeader() []string
-	ToCSVRow() []string
-}
-
 type Data struct {
 	Row          int    `json:"row" csv:"row" `
 	Tempo        string `json:"Tempo" csv:"Tempo" `
