@@ -140,17 +140,15 @@ func writeCsvFile(data Data) error {
 
 	path := "./dataset.csv"
 	fileCSV, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_EXCL, 0666)
-	if err != nil {
-		if strings.Contains(err.Error(), "no such file or directory") {
-			fileCSV, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
-			if err != nil {
-				fmt.Println("Error to create file: ", err)
-				return err
-			}
-		} else {
-			fmt.Println("Error to open file: ", err)
+	if err != nil && strings.Contains(err.Error(), "no such file or directory") {
+		fileCSV, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
+		if err != nil {
+			fmt.Println("Error to create file: ", err)
 			return err
 		}
+	} else if err != nil {
+		fmt.Println("Error to open file: ", err)
+		return err
 	}
 
 	w := bufio.NewWriterSize(fileCSV, 4096*2)
