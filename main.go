@@ -17,7 +17,8 @@ import (
 )
 
 var flag bool = false
-var i int
+var i, countAlreadyExists int
+var alreadyAdded []int
 
 type Data struct {
 	Row          int    `json:"row" csv:"row" `
@@ -85,14 +86,11 @@ var f MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
 
 		err = writeCsvFile(data)
 		if err != nil {
+			fmt.Println("Error: ", err)
 			flag = true
 		}
 
 		fmt.Printf("MSG: %s\n", payload)
-
-		if i == 3 {
-			flag = true
-		}
 	}
 
 	if strings.Compare("bye\n", string(payload)) == 0 {
@@ -139,39 +137,57 @@ func main() {
 func writeCsvFile(data Data) error {
 
 	path := "./dataset.csv"
-	fileCSV, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_EXCL, 0666)
-	if err != nil && strings.Contains(err.Error(), "no such file or directory") {
-		fileCSV, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
-		if err != nil {
-			fmt.Println("Error to create file: ", err)
+	if !contains(alreadyAdded, data.Row) {
+		fileCSV, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_EXCL, 0666)
+		if err != nil && strings.Contains(err.Error(), "no such file or directory") {
+			fileCSV, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
+			if err != nil {
+				fmt.Println("Error to create file: ", err)
+				return err
+			}
+		} else if err != nil {
+			fmt.Println("Error to open file: ", err)
 			return err
 		}
-	} else if err != nil {
-		fmt.Println("Error to open file: ", err)
-		return err
-	}
-	defer fileCSV.Close()
+		defer fileCSV.Close()
 
-	w := bufio.NewWriterSize(fileCSV, 4096*2)
-	wr := csv.NewWriter(w)
+		w := bufio.NewWriterSize(fileCSV, 4096*2)
+		wr := csv.NewWriter(w)
+		alreadyAdded = append(alreadyAdded, data.Row)
 
-	fileInfo, err := fileCSV.Stat()
-	if err != nil {
-		return err
-	}
+		fileInfo, err := fileCSV.Stat()
+		if err != nil {
+			return err
+		}
 
-	if i == 0 && fileInfo.Size() == 0 {
-		wr.Write(data.ToCSVHeader())
-	}
-	i++
+		if i == 0 && fileInfo.Size() == 0 {
+			wr.Write(data.ToCSVHeader())
+		}
+		i++
 
-	wr.Write(data.ToCSVRow())
-	wr.Flush()
+		wr.Write(data.ToCSVRow())
+		wr.Flush()
+		countAlreadyExists = 0
 
-	_, err = fileCSV.Seek(0, 0)
-	if err != nil {
-		return err
+		_, err = fileCSV.Seek(0, 0)
+		if err != nil {
+			return err
+		}
+	} else {
+		if countAlreadyExists >= 17500 {
+			return fmt.Errorf("Already get all data")
+		}
+		countAlreadyExists++
 	}
 
 	return nil
+}
+
+func contains(s []int, e int) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
